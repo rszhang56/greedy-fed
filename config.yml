@@ -1,0 +1,48 @@
+Output: 'result/cifar10/s0.1FedAvg.txt' # The file result is written. If you want to use stdout, just comment this line.
+
+Dataset:
+  name: CIFAR10 # Dataset name. MNIST EMNIST CIFAR10 Sent140 are supported
+  divide: niid # split function
+  type: Image # Image, NLP
+  s: 0.1 # similarity
+  class: N500sig10std1 #file name
+  user: 20 # use when niid_device, iid_device
+
+Model: 
+  name: FedAvgCNN # model name. FedAvgCNN FedAvg2NN LogisticRegression LSTM are supported.
+  input_shape: [3, 32, 32]  #[1, 28, 28]
+  cls_num: 10
+
+Trainer: 
+  name: FedAvg # trainer name. singleFed greedyFed FedAvg FedProx qFedAvg rFedAvg1 rFedAvg2 SCAFFOLD  are supported
+  seed: 0
+  C: 0.5 # sample rate
+  E: 10 # local training epoch
+  Round: 100 # total communication round
+  n_clients: 20 # clients number
+  device: cpu # cpu/cuda
+  batch_size: 5
+  optimizer:
+    name: SGD # optimizer name
+    lr_decay: 1.0 # learning rate decay
+    params:
+      lr: 0.02
+      momentum: 0.0
+      weight_decay: 0.0
+      # centered: False
+      # alpha: 0.99
+      # eps: 1e-8
+  #####Trainer Parameters#####
+  # qfedavg
+  L: 1.0
+  q: 0.1
+
+  # rfedavg1/rfedavg2
+  # lambda: 0.0001
+
+  # fedprox
+  # lambda: 0.5
+  
+  # SCAFFOLD
+  # eta_g: 1.0
+  #####Trainer Parameters#####
