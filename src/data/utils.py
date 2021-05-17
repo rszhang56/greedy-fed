@@ -23,22 +23,24 @@ def split_dataset_by_percent(train_dataset, test_dataset, s: float, num_user: in
     p_test_iid = 0
     p_test_niid = 0
 
-    delta_list = np.random.lognormal(4, 1, (num_user)).astype(int)
+    delta_list = np.random.lognormal(4, 1, (num_user)).astype(int) + 10
     delta_list = delta_list / delta_list.sum()
     '''
     delta_train_iid = len(trainset_iid_idx) // num_user
     delta_train_niid = len(trainset_niid_idx) // num_user
+    '''
     delta_test_iid = len(testset_iid_idx) // num_user
     delta_test_niid = len(testset_niid_idx) // num_user
-    '''
+
     dataset_split = []
+    print("22")
     for i in range(num_user):
         train_idx = []
         test_idx = []
         delta_train_iid = int(delta_list[i] * len(trainset_iid_idx))
         delta_train_niid = int(delta_list[i] * len(trainset_niid_idx))
-        delta_test_iid = int(delta_list[i] * len(testset_iid_idx))
-        delta_test_niid = int(delta_list[i] * len(testset_niid_idx))
+        #delta_test_iid = int(delta_list[i] * len(testset_iid_idx))
+        #delta_test_niid = int(delta_list[i] * len(testset_niid_idx))
         if delta_train_iid > 0:
             train_idx.extend(
                 trainset_iid_idx[
@@ -75,4 +77,5 @@ def split_dataset_by_percent(train_dataset, test_dataset, s: float, num_user: in
         p_train_niid += delta_train_niid
         p_test_iid += delta_test_iid
         p_test_niid += delta_test_niid
+    print("ok")
     return dataset_split
