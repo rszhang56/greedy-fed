@@ -1,2 +1,4 @@
-
+*.pyc
+result
+data
 .DS_Store
