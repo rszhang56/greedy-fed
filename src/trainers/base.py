@@ -60,12 +60,12 @@ class BaseClient():
         self.model.tensor_to_parameters(p_tensor)
         return
 
-    def test_accuracy(self):
+    def test_accuracy(self, batch = -1):
         if self.testset == None: return -1
         correct = 0
         total = 0
         with torch.no_grad():
-            for data in self.testloader:
+            for i, data in enumerate(self.testloader):
                 images, labels = data
                 images = images.to(self.device)
                 labels = labels.to(self.device)
@@ -73,6 +73,7 @@ class BaseClient():
                 _, predicted = torch.max(outputs.data, 1)
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
+                if i >= batch and batch >= 0: break
         return correct / total
     
     def get_features_and_labels(self, train=True, batch=-1):
@@ -185,7 +186,7 @@ class Trainer():
             self.server.clients = selected_clients
             best_client = lazy_list[-1][0]
             unselect_lazylist = []
-            old_test_acc = self.server.test_accuracy()
+            old_test_acc = self.server.test_accuracy(batch=200)
             for i in range(len(lazy_list)):
                 client = lazy_list[i][0]
                 if client in selected_clients:
@@ -193,7 +194,7 @@ class Trainer():
                 selected_clients.append(client)
                 self.server.aggregate_model(selected_clients)
                 selected_clients.remove(client)
-                new_test_acc = self.server.test_accuracy()
+                new_test_acc = self.server.test_accuracy(batch=200)
                 lazy_list[i][1] = min(lazy_list[i][1], new_test_acc - old_test_acc)
                 unselect_lazylist.append(lazy_list[i])
                 if(i != len(lazy_list) - 1 and lazy_list[i][1] >= lazy_list[i+1][1]):
