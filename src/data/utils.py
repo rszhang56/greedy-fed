@@ -33,7 +33,6 @@ def split_dataset_by_percent(train_dataset, test_dataset, s: float, num_user: in
     delta_test_niid = len(testset_niid_idx) // num_user
 
     dataset_split = []
-    print("22")
     for i in range(num_user):
         train_idx = []
         test_idx = []

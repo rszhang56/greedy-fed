@@ -1,4 +1,4 @@
 *.pyc
 result
-data
+/data
 .DS_Store

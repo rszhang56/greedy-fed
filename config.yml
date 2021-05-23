@@ -1,26 +1,28 @@
-Output: 'result/cifar10/s0.1FedAvg.txt' # The file result is written. If you want to use stdout, just comment this line.
+Output: 'result/noise_y_cifar_gfed+.txt' # The file result is written. If you want to use stdout, just comment this line.
 
 Dataset:
   name: CIFAR10 # Dataset name. MNIST EMNIST CIFAR10 Sent140 are supported
   divide: niid # split function
   type: Image # Image, NLP
-  s: 0.1 # similarity
-  class: N500sig10std1 #file name
-  user: 20 # use when niid_device, iid_device
+  s: 1.0 # similarity
+  # class: N500sig10std1 #file name
+  user: 100 # use when niid_device, iid_device
+  noise_client_percent: 0.8
+  noise_sample_percent: 0.2
 
 Model: 
   name: FedAvgCNN # model name. FedAvgCNN FedAvg2NN LogisticRegression LSTM are supported.
-  input_shape: [3, 32, 32]  #[1, 28, 28]
+  input_shape: [3, 28, 28]  #[1, 28, 28]
   cls_num: 10
 
 Trainer: 
   name: FedAvg # trainer name. singleFed greedyFed FedAvg FedProx qFedAvg rFedAvg1 rFedAvg2 SCAFFOLD  are supported
   seed: 0
-  C: 0.5 # sample rate
-  E: 10 # local training epoch
+  C: 0.2 # sample rate
+  E: 5 # local training epoch
   Round: 100 # total communication round
-  n_clients: 20 # clients number
-  device: cpu # cpu/cuda
+  n_clients: 100 # clients number
+  device: cuda # cpu/cuda
   batch_size: 5
   optimizer:
     name: SGD # optimizer name
@@ -34,8 +36,8 @@ Trainer:
       # eps: 1e-8
   #####Trainer Parameters#####
   # qfedavg
-  L: 1.0
-  q: 0.1
+  # L: 1.0
+  # q: 0.1
 
   # rfedavg1/rfedavg2
   # lambda: 0.0001
