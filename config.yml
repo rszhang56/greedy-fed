@@ -1,4 +1,4 @@
-Output: 'result/noise_y_cifar_gfed+.txt' # The file result is written. If you want to use stdout, just comment this line.
+# Output: 'result/noise_y_cifar_gfed+.txt' # The file result is written. If you want to use stdout, just comment this line.
 
 Dataset:
   name: CIFAR10 # Dataset name. MNIST EMNIST CIFAR10 Sent140 are supported
@@ -16,10 +16,11 @@ Model:
   cls_num: 10
 
 Trainer: 
-  name: FedAvg # trainer name. singleFed greedyFed FedAvg FedProx qFedAvg rFedAvg1 rFedAvg2 SCAFFOLD  are supported
+  name: greedyFed # trainer name. singleFed greedyFed FedAvg FedProx qFedAvg rFedAvg1 rFedAvg2 SCAFFOLD  are supported
   seed: 0
   C: 0.2 # sample rate
   E: 5 # local training epoch
+  E_select: 20 # local training epoch
   Round: 100 # total communication round
   n_clients: 100 # clients number
   device: cuda # cpu/cuda

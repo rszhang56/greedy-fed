@@ -170,7 +170,7 @@ class Trainer():
         for client in self.server.clients:
             if lazy_list != []:
                 client.clone_model(self.server)
-            client.local_train(self.server.E)
+            client.local_train(self.server.params['Trainer']['E_select'])
         time_end = time.time()
         output.write('local train time: %.0f seconds\n' % (time_end - time_begin))
 
