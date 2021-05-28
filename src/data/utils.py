@@ -25,6 +25,8 @@ def split_dataset_by_percent(train_dataset, test_dataset, s: float, num_user: in
 
     delta_list = np.random.lognormal(4, 1, (num_user)).astype(int) + 10
     delta_list = delta_list / delta_list.sum()
+    delta_list.sort()
+    delta_list = delta_list[::-1]
     '''
     delta_train_iid = len(trainset_iid_idx) // num_user
     delta_train_niid = len(trainset_niid_idx) // num_user

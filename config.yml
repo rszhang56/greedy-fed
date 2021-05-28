@@ -16,14 +16,14 @@ Model:
   cls_num: 10
 
 Trainer: 
-  name: greedyFed # trainer name. singleFed greedyFed FedAvg FedProx qFedAvg rFedAvg1 rFedAvg2 SCAFFOLD  are supported
+  name: topk # trainer name. singleFed greedyFed FedAvg FedProx qFedAvg rFedAvg1 rFedAvg2 SCAFFOLD  are supported
   seed: 0
   C: 0.2 # sample rate
   E: 5 # local training epoch
   E_select: 20 # local training epoch
   Round: 100 # total communication round
   n_clients: 100 # clients number
-  device: cuda # cpu/cuda
+  device: cpu # cpu/cuda
   batch_size: 5
   optimizer:
     name: SGD # optimizer name
