@@ -17,6 +17,7 @@ class BaseClient():
         self.batch_size = params['Trainer']['batch_size']
         self.trainset = dataset['train']
         self.testset = dataset['test']
+        self.validation = dataset['validation']
         self.id = id
         collate_fn = None
         dataset_type = 'Image'
@@ -32,6 +33,7 @@ class BaseClient():
                 shuffle=True,
                 collate_fn=collate_fn,
             )
+        else: self.trainloader = None
         if self.testset != None:
             self.testloader = torch.utils.data.DataLoader(
                 self.testset, 
@@ -40,6 +42,16 @@ class BaseClient():
                 shuffle=True,
                 collate_fn=collate_fn,
             )
+        else: self.testloader = None
+        if self.validation != None:
+            self.valloader = torch.utils.data.DataLoader(
+                self.validation, 
+                batch_size=self.batch_size,
+                drop_last=False,
+                shuffle=True,
+                collate_fn=collate_fn,
+            )
+        else: self.valloader = None
         self.E = params['Trainer']['E']
         self.device = torch.device(params['Trainer']['device'])
         models = importlib.import_module('src.models')
@@ -60,12 +72,14 @@ class BaseClient():
         self.model.tensor_to_parameters(p_tensor)
         return
 
-    def test_accuracy(self, batch = -1):
-        if self.testset == None: return -1
+    def test_accuracy(self, val = False, batch = -1):
+        dl = self.testloader
+        if val: dl = self.valloader
+        if dl == None: return -1
         correct = 0
         total = 0
         with torch.no_grad():
-            for i, data in enumerate(self.testloader):
+            for i, data in enumerate(dl):
                 images, labels = data
                 images = images.to(self.device)
                 labels = labels.to(self.device)
@@ -186,7 +200,7 @@ class Trainer():
             self.server.clients = selected_clients
             best_client = lazy_list[-1][0]
             unselect_lazylist = []
-            old_test_acc = self.server.test_accuracy(batch=200)
+            old_test_acc = self.server.test_accuracy(val=True, batch=200)
             for i in range(len(lazy_list)):
                 client = lazy_list[i][0]
                 if client in selected_clients:
@@ -194,7 +208,7 @@ class Trainer():
                 selected_clients.append(client)
                 self.server.aggregate_model(selected_clients)
                 selected_clients.remove(client)
-                new_test_acc = self.server.test_accuracy(batch=200)
+                new_test_acc = self.server.test_accuracy(val=True, batch=100)
                 lazy_list[i][1] = min(lazy_list[i][1], new_test_acc - old_test_acc)
                 unselect_lazylist.append(lazy_list[i])
                 if(i != len(lazy_list) - 1 and lazy_list[i][1] >= lazy_list[i+1][1]):

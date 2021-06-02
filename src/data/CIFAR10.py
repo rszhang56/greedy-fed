@@ -40,6 +40,7 @@ def niid(params):
     testset_dict = {
         'train': None,
         'test': copy.deepcopy(test_dataset),
+        'validation': None, 
     }
     r = random.random()
     dataset_split = split_dataset_by_percent(train_dataset, test_dataset, s, num_user)

@@ -10,6 +10,10 @@ def split_dataset_by_percent(train_dataset, test_dataset, s: float, num_user: in
     testset_targets = [(i, func(item)) for i, item in enumerate(test_dataset)]
     random.shuffle(trainset_targets)
     random.shuffle(testset_targets)
+    validation_len = 1000
+    validation_idx = trainset_targets[:validation_len]
+    validation_idx = list(map(lambda x: x[0], validation_idx))
+    trainset_targets = trainset_targets[validation_len:]
     len_train_iid = round(s * len(train_dataset))
     len_test_iid = round(s * len(test_dataset))
     trainset_iid_idx = trainset_targets[:len_train_iid]
@@ -72,6 +76,7 @@ def split_dataset_by_percent(train_dataset, test_dataset, s: float, num_user: in
             {
                 'train': Subset(train_dataset, train_idx),
                 'test': Subset(test_dataset, test_idx),
+                'validation': Subset(train_dataset, validation_idx), 
             }
         )
         p_train_iid += delta_train_iid

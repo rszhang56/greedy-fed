@@ -60,7 +60,7 @@ class Server(BaseServer):
                 client.clone_model(self)
                 client.local_train(self.params['Trainer']['E_select'])
                 self.aggregate_model([client])
-                tmp_acc = self.test_accuracy(batch=100)
+                tmp_acc = self.test_accuracy(val=True, batch=100)
                 acc.append((client, tmp_acc))
             acc.sort(key=lambda x: x[1], reverse=True)
             for i in range(self.n_clients_per_round):
