@@ -243,7 +243,7 @@ class Trainer():
         self.server.clients = selected_clients
         self.server.aggregate_model(selected_clients)
         output.write('==========selection end==========\n')
-        output.write('server, accuracy: %.5f\n' % self.server.test_accuracy())
+        # output.write('server, accuracy: %.5f\n' % self.server.test_accuracy())
         output.write('selection time: %.0f seconds\n' % (time_end - time_begin))
         self.server.model.tensor_to_parameters(old_parameters)
         return selected_clients, lazy_list
@@ -267,10 +267,8 @@ class Trainer():
 
                 if (round+1) % 10 == 0 and self.config['Trainer']['name'] == "greedyFed+" and self.meters['accuracy'].last() < self.meters['accuracy'].avg(-5):
                     clients, lazy_list = self.greedy_select(lazy_list, output)
-                    continue
-                else:
-                    clients = self.server.train()
-                    self.meters['accuracy'].append(self.server.test_accuracy())
+                clients = self.server.train()
+                self.meters['accuracy'].append(self.server.test_accuracy())
                 time_end = time.time()
                 for client in sorted(clients, key=lambda x: x.id):
                     client_summary = []
