@@ -179,6 +179,7 @@ class Trainer():
 
     def greedy_select(self, lazy_list, output):
         output.write('==========selection begin==========\n')
+        old_parameters = self.server.model.parameters_to_tensor()
         time_begin = time.time()
         # local client train their model E epoch
         for client in self.server.clients:
@@ -208,7 +209,7 @@ class Trainer():
                 selected_clients.append(client)
                 self.server.aggregate_model(selected_clients)
                 selected_clients.remove(client)
-                new_test_acc = self.server.test_accuracy(val=True, batch=100)
+                new_test_acc = self.server.test_accuracy(val=True, batch=200)
                 lazy_list[i][1] = min(lazy_list[i][1], new_test_acc - old_test_acc)
                 unselect_lazylist.append(lazy_list[i])
                 if(i != len(lazy_list) - 1 and lazy_list[i][1] >= lazy_list[i+1][1]):
@@ -244,6 +245,7 @@ class Trainer():
         output.write('==========selection end==========\n')
         output.write('server, accuracy: %.5f\n' % self.server.test_accuracy())
         output.write('selection time: %.0f seconds\n' % (time_end - time_begin))
+        self.server.model.tensor_to_parameters(old_parameters)
         return selected_clients, lazy_list
 
     def train(self):

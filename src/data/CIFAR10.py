@@ -44,6 +44,7 @@ def niid(params):
     }
     r = random.random()
     dataset_split = split_dataset_by_percent(train_dataset, test_dataset, s, num_user)
+    testset_dict['validation'] = dataset_split[0]['validation']
     for i, dataset in enumerate(dataset_split):
         r = random.random()
         if i > params['Trainer']['n_clients'] * (1 - params['Dataset']['noise_client_percent']):
