@@ -3,6 +3,7 @@ import random
 import importlib
 import numpy as np
 import torch.optim as optim
+import torch.nn as nn
 import time
 import sys
 import yaml
@@ -72,12 +73,14 @@ class BaseClient():
         self.model.tensor_to_parameters(p_tensor)
         return
 
-    def test_accuracy(self, val = False, batch = -1):
+    def test_accuracy(self, val=False, batch=-1, acc=True):
         dl = self.testloader
         if val: dl = self.valloader
         if dl == None: return -1
         correct = 0
         total = 0
+        loss = 0.0
+        classifier_criterion = nn.CrossEntropyLoss()
         with torch.no_grad():
             for i, data in enumerate(dl):
                 images, labels = data
@@ -87,8 +90,14 @@ class BaseClient():
                 _, predicted = torch.max(outputs.data, 1)
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
+                classifier_loss = classifier_criterion(
+                    outputs,
+                    labels,
+                )
+                loss += classifier_loss.item()
                 if i >= batch and batch >= 0: break
-        return correct / total
+        if acc: return correct / total
+        else: return loss / total
     
     def get_features_and_labels(self, train=True, batch=-1):
         dataloader = None
@@ -183,8 +192,7 @@ class Trainer():
         time_begin = time.time()
         # local client train their model E epoch
         for client in self.server.clients:
-            if lazy_list != []:
-                client.clone_model(self.server)
+            client.clone_model(self.server)
             client.local_train(self.server.params['Trainer']['E_select'])
         time_end = time.time()
         output.write('local train time: %.0f seconds\n' % (time_end - time_begin))
@@ -247,6 +255,62 @@ class Trainer():
         output.write('selection time: %.0f seconds\n' % (time_end - time_begin))
         self.server.model.tensor_to_parameters(old_parameters)
         return selected_clients, lazy_list
+    
+    def greedy_select_by_loss(self, lazy_list, output):
+        output.write('==========selection begin==========\n')
+        old_parameters = self.server.model.parameters_to_tensor()
+        time_begin = time.time()
+        # local client train their model E epoch
+        for client in self.server.clients:
+            client.clone_model(self.server)
+            client.local_train(self.server.params['Trainer']['E_select'])
+        time_end = time.time()
+        output.write('local train time: %.0f seconds\n' % (time_end - time_begin))
+
+        time_begin = time.time()
+        select_num = self.server.n_clients_per_round
+        selected_clients = []
+        unselect_clients = self.server.clients
+        if lazy_list == []:
+            lazy_list = [[c, 10] for c in unselect_clients]
+        lazy_list = [[c, 10] for c in unselect_clients]
+
+        for j in range(select_num):
+            self.server.clients = selected_clients
+            best_client = lazy_list[-1][0]
+            unselect_lazylist = []
+            old_test_loss = self.server.test_accuracy(val=True, batch=200, acc=False)
+            for i in range(len(lazy_list)):
+                client = lazy_list[i][0]
+                if client in selected_clients:
+                    continue
+                selected_clients.append(client)
+                self.server.aggregate_model(selected_clients)
+                selected_clients.remove(client)
+                new_test_loss = self.server.test_accuracy(val=True, batch=200, acc=False)
+                lazy_list[i][1] = min(lazy_list[i][1], old_test_loss - new_test_loss)
+                unselect_lazylist.append(lazy_list[i])
+                if(i != len(lazy_list) - 1 and lazy_list[i][1] >= lazy_list[i+1][1]):
+                    best_client = client
+                    break
+            if best_client ==  lazy_list[-1][0]:
+                unselect_lazylist.sort(key=lambda x: x[1], reverse=True)
+                best_client = unselect_lazylist[0][0]
+            selected_clients.append(best_client)
+            unselect_clients.remove(best_client)
+            lazy_list.sort(key=lambda x : x[1], reverse=True)
+        for client in unselect_clients:
+            selected_clients.append(client)
+
+        time_end = time.time()
+        self.clients = selected_clients
+        self.server.clients = selected_clients
+        self.server.aggregate_model(selected_clients)
+        output.write('==========selection end==========\n')
+        # output.write('server, accuracy: %.5f\n' % self.server.test_accuracy())
+        output.write('selection time: %.0f seconds\n' % (time_end - time_begin))
+        self.server.model.tensor_to_parameters(old_parameters)
+        return selected_clients, lazy_list
 
     def train(self):
         output = sys.stdout
@@ -256,7 +320,7 @@ class Trainer():
         output.write(yaml.dump(self.config, Dumper=yaml.Dumper))
         # greedy algorithm: select the best clients by greedy strategy
         if self.config['Trainer']['name'] == "greedyFed" or self.config['Trainer']['name'] == "greedyFed+":
-            selected_clients, lazy_list = self.greedy_select([], output)
+            selected_clients, lazy_list = self.greedy_select_by_loss([], output)
         try:
             for round in tqdm(range(self.config['Trainer']['Round']), desc='Communication Round', leave=False):
                 output.write('==========Round %d begin==========\n' % round)
@@ -266,7 +330,7 @@ class Trainer():
                 #if C_t & (C_t - 1) == 0 and self.config['Trainer']['name'] == "greedyFed+":
 
                 if (round+1) % 10 == 0 and self.config['Trainer']['name'] == "greedyFed+" and self.meters['accuracy'].last() < self.meters['accuracy'].avg(-5):
-                    clients, lazy_list = self.greedy_select(lazy_list, output)
+                    clients, lazy_list = self.greedy_select_by_loss(lazy_list, output)
                 clients = self.server.train()
                 self.meters['accuracy'].append(self.server.test_accuracy())
                 time_end = time.time()
