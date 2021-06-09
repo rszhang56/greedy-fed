@@ -8,7 +8,7 @@ Dataset:
   # class: N500sig10std1 #file name
   user: 100 # use when niid_device, iid_device
   noise_client_percent: 0.8
-  noise_sample_percent: 0.2
+  noise_sample_percent: 0.5
 
 Model: 
   name: FedAvgCNN # model name. FedAvgCNN FedAvg2NN LogisticRegression LSTM are supported.
@@ -48,4 +48,5 @@ Trainer:
   
   # SCAFFOLD
   # eta_g: 1.0
+  evaluation: acc
   #####Trainer Parameters#####

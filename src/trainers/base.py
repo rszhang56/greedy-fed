@@ -80,6 +80,7 @@ class BaseClient():
         correct = 0
         total = 0
         loss = 0.0
+        batch_count = 0
         classifier_criterion = nn.CrossEntropyLoss()
         with torch.no_grad():
             for i, data in enumerate(dl):
@@ -95,9 +96,12 @@ class BaseClient():
                     labels,
                 )
                 loss += classifier_loss.item()
+                batch_count += 1
                 if i >= batch and batch >= 0: break
-        if acc: return correct / total
-        else: return loss / total
+        accuracy = correct / total
+        loss = loss / batch_count
+        if acc: return accuracy
+        else: return loss
     
     def get_features_and_labels(self, train=True, batch=-1):
         dataloader = None
@@ -186,77 +190,77 @@ class Trainer():
         # save config
         self.config = config
 
-    def greedy_select(self, lazy_list, output):
-        output.write('==========selection begin==========\n')
-        old_parameters = self.server.model.parameters_to_tensor()
-        time_begin = time.time()
-        # local client train their model E epoch
-        for client in self.server.clients:
-            client.clone_model(self.server)
-            client.local_train(self.server.params['Trainer']['E_select'])
-        time_end = time.time()
-        output.write('local train time: %.0f seconds\n' % (time_end - time_begin))
+    # def greedy_select(self, lazy_list, output):
+    #     output.write('==========selection begin==========\n')
+    #     old_parameters = self.server.model.parameters_to_tensor()
+    #     time_begin = time.time()
+    #     # local client train their model E epoch
+    #     for client in self.server.clients:
+    #         client.clone_model(self.server)
+    #         client.local_train(self.server.params['Trainer']['E_select'])
+    #     time_end = time.time()
+    #     output.write('local train time: %.0f seconds\n' % (time_end - time_begin))
 
-        time_begin = time.time()
-        select_num = self.server.n_clients_per_round
-        selected_clients = []
-        unselect_clients = self.server.clients
-        if lazy_list == []:
-            lazy_list = [[c, 10] for c in unselect_clients]
-        lazy_list = [[c, 10] for c in unselect_clients]
+    #     time_begin = time.time()
+    #     select_num = self.server.n_clients_per_round
+    #     selected_clients = []
+    #     unselect_clients = self.server.clients
+    #     if lazy_list == []:
+    #         lazy_list = [[c, 10] for c in unselect_clients]
+    #     lazy_list = [[c, 10] for c in unselect_clients]
 
-        for j in range(select_num):
-            self.server.clients = selected_clients
-            best_client = lazy_list[-1][0]
-            unselect_lazylist = []
-            old_test_acc = self.server.test_accuracy(val=True, batch=200)
-            for i in range(len(lazy_list)):
-                client = lazy_list[i][0]
-                if client in selected_clients:
-                    continue
-                selected_clients.append(client)
-                self.server.aggregate_model(selected_clients)
-                selected_clients.remove(client)
-                new_test_acc = self.server.test_accuracy(val=True, batch=200)
-                lazy_list[i][1] = min(lazy_list[i][1], new_test_acc - old_test_acc)
-                unselect_lazylist.append(lazy_list[i])
-                if(i != len(lazy_list) - 1 and lazy_list[i][1] >= lazy_list[i+1][1]):
-                    best_client = client
-                    break
-            if best_client ==  lazy_list[-1][0]:
-                unselect_lazylist.sort(key=lambda x: x[1], reverse=True)
-                best_client = unselect_lazylist[0][0]
-            selected_clients.append(best_client)
-            unselect_clients.remove(best_client)
-            lazy_list.sort(key=lambda x : x[1], reverse=True)
-        '''
-        for i in range(select_num):
-            best_client = self.server.clients[-1]
-            max_acc = 0.0
-            for client in unselect_clients:
-                selected_clients.append(client)
-                self.server.aggregate_model(selected_clients)
-                selected_clients.remove(client)
-                if self.server.test_accuracy() >= max_acc:
-                    max_acc = self.server.test_accuracy()
-                    best_client = client
-            selected_clients.append(best_client)
-            unselect_clients.remove(best_client)
-        '''
-        for client in unselect_clients:
-            selected_clients.append(client)
+    #     for j in range(select_num):
+    #         self.server.clients = selected_clients
+    #         best_client = lazy_list[-1][0]
+    #         unselect_lazylist = []
+    #         old_test_acc = self.server.test_accuracy(val=True, batch=200)
+    #         for i in range(len(lazy_list)):
+    #             client = lazy_list[i][0]
+    #             if client in selected_clients:
+    #                 continue
+    #             selected_clients.append(client)
+    #             self.server.aggregate_model(selected_clients)
+    #             selected_clients.remove(client)
+    #             new_test_acc = self.server.test_accuracy(val=True, batch=200)
+    #             lazy_list[i][1] = min(lazy_list[i][1], new_test_acc - old_test_acc)
+    #             unselect_lazylist.append(lazy_list[i])
+    #             if(i != len(lazy_list) - 1 and lazy_list[i][1] >= lazy_list[i+1][1]):
+    #                 best_client = client
+    #                 break
+    #         if best_client ==  lazy_list[-1][0]:
+    #             unselect_lazylist.sort(key=lambda x: x[1], reverse=True)
+    #             best_client = unselect_lazylist[0][0]
+    #         selected_clients.append(best_client)
+    #         unselect_clients.remove(best_client)
+    #         lazy_list.sort(key=lambda x : x[1], reverse=True)
+    #     '''
+    #     for i in range(select_num):
+    #         best_client = self.server.clients[-1]
+    #         max_acc = 0.0
+    #         for client in unselect_clients:
+    #             selected_clients.append(client)
+    #             self.server.aggregate_model(selected_clients)
+    #             selected_clients.remove(client)
+    #             if self.server.test_accuracy() >= max_acc:
+    #                 max_acc = self.server.test_accuracy()
+    #                 best_client = client
+    #         selected_clients.append(best_client)
+    #         unselect_clients.remove(best_client)
+    #     '''
+    #     for client in unselect_clients:
+    #         selected_clients.append(client)
 
-        time_end = time.time()
-        self.clients = selected_clients
-        self.server.clients = selected_clients
-        self.server.aggregate_model(selected_clients)
-        output.write('==========selection end==========\n')
-        # output.write('server, accuracy: %.5f\n' % self.server.test_accuracy())
-        output.write('selection time: %.0f seconds\n' % (time_end - time_begin))
-        self.server.model.tensor_to_parameters(old_parameters)
-        return selected_clients, lazy_list
+    #     time_end = time.time()
+    #     self.clients = selected_clients
+    #     self.server.clients = selected_clients
+    #     self.server.aggregate_model(selected_clients)
+    #     output.write('==========selection end==========\n')
+    #     # output.write('server, accuracy: %.5f\n' % self.server.test_accuracy())
+    #     output.write('selection time: %.0f seconds\n' % (time_end - time_begin))
+    #     self.server.model.tensor_to_parameters(old_parameters)
+    #     return selected_clients, lazy_list
     
-    def greedy_select_by_loss(self, lazy_list, output):
+    def greedy_select(self, lazy_list, output, acc=True):
         output.write('==========selection begin==========\n')
         old_parameters = self.server.model.parameters_to_tensor()
         time_begin = time.time()
@@ -271,15 +275,18 @@ class Trainer():
         select_num = self.server.n_clients_per_round
         selected_clients = []
         unselect_clients = self.server.clients
-        if lazy_list == []:
-            lazy_list = [[c, 10] for c in unselect_clients]
         lazy_list = [[c, 10] for c in unselect_clients]
 
         for j in range(select_num):
             self.server.clients = selected_clients
-            best_client = lazy_list[-1][0]
+            best_client = None
+            max_gain = 0
             unselect_lazylist = []
-            old_test_loss = self.server.test_accuracy(val=True, batch=200, acc=False)
+            old_test = 0.0
+            if acc:
+                old_test = self.server.test_accuracy(val=True, batch=200)
+            else:
+                old_test = self.server.test_accuracy(val=True, batch=200, acc=False)
             for i in range(len(lazy_list)):
                 client = lazy_list[i][0]
                 if client in selected_clients:
@@ -287,17 +294,25 @@ class Trainer():
                 selected_clients.append(client)
                 self.server.aggregate_model(selected_clients)
                 selected_clients.remove(client)
-                new_test_loss = self.server.test_accuracy(val=True, batch=200, acc=False)
-                lazy_list[i][1] = min(lazy_list[i][1], old_test_loss - new_test_loss)
+                gain = 0
+                if acc:
+                    gain = self.server.test_accuracy(val=True, batch=200) - old_test
+                else:
+                    gain = old_test - self.server.test_accuracy(val=True, batch=200, acc=False)
+                lazy_list[i][1] = min(lazy_list[i][1], gain)
                 unselect_lazylist.append(lazy_list[i])
-                if(i != len(lazy_list) - 1 and lazy_list[i][1] >= lazy_list[i+1][1]):
+                if gain > max_gain:
+                    max_gain = gain
                     best_client = client
+                print('selecting %d client, clientid: %d, gain: %f' % (j, client.id, gain))
+                if(i != len(lazy_list) - 1 and max_gain >= lazy_list[i+1][1]):
                     break
-            if best_client ==  lazy_list[-1][0]:
+            if best_client == None:
                 unselect_lazylist.sort(key=lambda x: x[1], reverse=True)
                 best_client = unselect_lazylist[0][0]
             selected_clients.append(best_client)
             unselect_clients.remove(best_client)
+            print('client id: %d is selected' % best_client.id)
             lazy_list.sort(key=lambda x : x[1], reverse=True)
         for client in unselect_clients:
             selected_clients.append(client)
@@ -307,7 +322,6 @@ class Trainer():
         self.server.clients = selected_clients
         self.server.aggregate_model(selected_clients)
         output.write('==========selection end==========\n')
-        # output.write('server, accuracy: %.5f\n' % self.server.test_accuracy())
         output.write('selection time: %.0f seconds\n' % (time_end - time_begin))
         self.server.model.tensor_to_parameters(old_parameters)
         return selected_clients, lazy_list
@@ -319,8 +333,11 @@ class Trainer():
         #if 'Output' in self.config: output = mox.file.File('obs://fed/fed-selection/code/result/' + self.config['Output'], 'a')
         output.write(yaml.dump(self.config, Dumper=yaml.Dumper))
         # greedy algorithm: select the best clients by greedy strategy
+        acc = True
+        if self.config['Trainer']['evaluation'] == 'loss':
+            acc = False
         if self.config['Trainer']['name'] == "greedyFed" or self.config['Trainer']['name'] == "greedyFed+":
-            selected_clients, lazy_list = self.greedy_select_by_loss([], output)
+            selected_clients, lazy_list = self.greedy_select([], output, acc)
         try:
             for round in tqdm(range(self.config['Trainer']['Round']), desc='Communication Round', leave=False):
                 output.write('==========Round %d begin==========\n' % round)
@@ -328,9 +345,8 @@ class Trainer():
 
                 #C_t = self.config['Trainer']['Round'] - (round + 1)
                 #if C_t & (C_t - 1) == 0 and self.config['Trainer']['name'] == "greedyFed+":
-
                 if (round+1) % 10 == 0 and self.config['Trainer']['name'] == "greedyFed+" and self.meters['accuracy'].last() < self.meters['accuracy'].avg(-5):
-                    clients, lazy_list = self.greedy_select_by_loss(lazy_list, output)
+                    clients, lazy_list = self.greedy_select(lazy_list, output, acc)
                 clients = self.server.train()
                 self.meters['accuracy'].append(self.server.test_accuracy())
                 time_end = time.time()
