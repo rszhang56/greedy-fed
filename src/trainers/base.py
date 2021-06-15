@@ -285,8 +285,10 @@ class Trainer():
             old_test = 0.0
             if acc:
                 old_test = self.server.test_accuracy(val=True, batch=200)
+                if j == 0: old_test = 0
             else:
                 old_test = self.server.test_accuracy(val=True, batch=200, acc=False)
+                if j == 0: old_test = 10
             for i in range(len(lazy_list)):
                 client = lazy_list[i][0]
                 if client in selected_clients:
