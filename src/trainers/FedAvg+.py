@@ -1,4 +1,5 @@
 import torch
+import math
 import torch.nn as nn
 import torch.utils.data
 import time
@@ -15,10 +16,11 @@ class Client(BaseClient):
             'accuracy': AvgMeter(),
             'classifier_loss': AvgMeter(),
         }
+        self.last_involved = 0
     
-    def local_train(self,num_epoch):
+    def local_train(self):
         meters_classifier_loss = AvgMeter()
-        for epoch in range(num_epoch):
+        for epoch in range(self.E):
             for i, data in enumerate(self.trainloader):
                 self.optimizer.zero_grad()
                 inputs, labels = data
@@ -34,11 +36,12 @@ class Client(BaseClient):
                 meters_classifier_loss.append(classifier_loss.item())
         self.meters['accuracy'].append(self.test_accuracy())
         self.meters['classifier_loss'].append(meters_classifier_loss.avg())
+        self.sample_loss = meters_classifier_loss.avg()
 
 class Server(BaseServer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.selected_clients = []
+        self.selected_client = []
 
     def aggregate_model(self, clients):
         n = len(clients)
@@ -53,33 +56,38 @@ class Server(BaseServer):
         return
 
     def train(self):
-        if len(self.selected_clients) == 0:
-            print('----- select begin -----')
-            acc = []
-            for client in self.clients:
-                client.clone_model(self)
-                client.local_train(self.params['Trainer']['E_select'])
-                tmp_acc = client.test_accuracy(val=True, batch=200)
-                acc.append((client, tmp_acc))
-            acc.sort(key=lambda x: x[1], reverse=True)
-            for i in range(self.n_clients_per_round):
-                print('client %d is selected, acc: %f' % (acc[i][0].id, acc[i][1]))
-                self.selected_clients.append(acc[i][0])
-            print('----- select end -----')
+        # random clients
+        clients = self.sample_client()
 
-        for client in self.selected_clients:
+        for client in clients:
             # send params
             client.clone_model(self)
             for p in client.optimizer.param_groups:
                 p['lr'] = self.learning_rate
         
-        for client in self.selected_clients:
+        for client in clients:
             # local train
-            client.local_train(self.E)
+            client.local_train()
         
         # aggregate params
-        self.aggregate_model(self.selected_clients)
+        self.aggregate_model(clients)
 
         self.learning_rate *= self.params['Trainer']['optimizer']['lr_decay']
         
-        return self.selected_clients
+        return clients
+    
+    def sample_client(self):
+        if len(self.selected_client) >= 250:
+            return random.sample(self.selected_client, self.n_clients_per_round)
+
+        random_client = random.sample(self.clients, self.n_clients_per_round)
+        union_client = list(set(self.selected_client).union(set(random_client)))
+        if len(union_client) >= 250:
+            self.selected_client = union_client[0:250]
+            return random.sample(self.selected_client, self.n_clients_per_round)
+        else:
+            self.selected_client = union_client
+            return random_client
+
+
+        

@@ -85,3 +85,43 @@ def split_dataset_by_percent(train_dataset, test_dataset, s: float, num_user: in
         p_test_niid += delta_test_niid
     print("ok")
     return dataset_split
+
+def noise_split(train_dataset, test_dataset, s: float, num_user: int, func=(lambda x: x[1])):
+    trainset_targets = [(i, func(item)) for i, item in enumerate(train_dataset)]
+    random.shuffle(trainset_targets)
+    validation_len = 1000
+    validation_idx = trainset_targets[:validation_len]
+    validation_idx = list(map(lambda x: x[0], validation_idx))
+    trainset_targets = trainset_targets[validation_len:]
+    class_targets = {}
+    for i in range(10):
+        class_targets[i] = list(filter(lambda x: x[1] == i, trainset_targets))
+    class_merge_targets = []
+    class_merge_targets.append(class_targets[0] + class_targets[1])
+    class_merge_targets.append(class_targets[2] + class_targets[3])
+    class_merge_targets.append(class_targets[4] + class_targets[5])
+    class_merge_targets.append(class_targets[6] + class_targets[7])
+    class_merge_targets.append(class_targets[8] + class_targets[9])
+
+    for i in range(5):
+        random.shuffle(class_merge_targets[i])
+
+    dataset_split = []
+    for i in range(5):
+        count_ds = len(class_merge_targets[i]) // 100
+        p_train = 0
+        for j in range(100):
+            train_idx = class_merge_targets[i][
+                p_train: p_train + count_ds
+            ]
+            train_idx = list(map(lambda x: x[0], train_idx))
+            dataset_split.append(
+                {
+                    'train': Subset(train_dataset, train_idx),
+                    'test': None,
+                    'validation': Subset(train_dataset, validation_idx), 
+                }
+            )
+            p_train += count_ds
+    print("ok")
+    return dataset_split

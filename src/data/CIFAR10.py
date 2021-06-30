@@ -34,6 +34,13 @@ def shuffle_target(dataset, percent_sample):
             list(dataset.dataset.class_to_idx.values()), 
         )
 
+def remap_target(dataset, percent_sample, target_map):
+    dataset_len = len(dataset.indices)
+    shuffle_target_num = int(dataset_len * percent_sample)
+    shuffle_idx = random.sample(dataset.indices, shuffle_target_num)
+    for idx in shuffle_idx:
+        dataset.dataset.targets[idx] = target_map[dataset.dataset.targets[idx]]
+
 def niid(params):
     num_user = params['Trainer']['n_clients']
     s = params['Dataset']['s']
@@ -43,12 +50,18 @@ def niid(params):
         'validation': None, 
     }
     r = random.random()
-    dataset_split = split_dataset_by_percent(train_dataset, test_dataset, s, num_user)
+    dataset_split = noise_split(train_dataset, test_dataset, s, num_user)
     testset_dict['validation'] = dataset_split[0]['validation']
     for i, dataset in enumerate(dataset_split):
         r = random.random()
-        if i > params['Trainer']['n_clients'] * (1 - params['Dataset']['noise_client_percent']):
-            shuffle_target(dataset['train'], params['Dataset']['noise_sample_percent'])
-            shuffle_target(dataset['test'], params['Dataset']['noise_sample_percent'])
+        if i < 100:
+            continue
+        elif i < 450:
+            shuffle_target(dataset['train'], 0.5)
+        else:
+            mp = {}
+            for i in range(10):
+                mp[i] = (i + 1) % 10
+            remap_target(dataset['train'], 1.0, mp)
     print("add noise ... ok")
     return dataset_split, testset_dict
