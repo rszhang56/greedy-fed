@@ -36,6 +36,10 @@ class Client(BaseClient):
         self.meters['classifier_loss'].append(meters_classifier_loss.avg())
 
 class Server(BaseServer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.T = 0
+        self.single_clients = []
     def aggregate_model(self, clients):
         n = len(clients)
         total_batch = torch.tensor(0)
@@ -50,21 +54,22 @@ class Server(BaseServer):
 
     def train(self):
         # select given clients
-        clients = self.select_client()
-
-        for client in clients:
+        if self.T == 0:
+            self.single_clients = self.sample_client()
+            self.T = 1
+        for client in self.single_clients:
             # send params
             client.clone_model(self)
             for p in client.optimizer.param_groups:
                 p['lr'] = self.learning_rate
         
-        for client in clients:
+        for client in self.single_clients:
             # local train
             client.local_train()
         
         # aggregate params
-        self.aggregate_model(clients)
+        self.aggregate_model(self.single_clients)
 
         self.learning_rate *= self.params['Trainer']['optimizer']['lr_decay']
         
-        return clients
+        return self.single_clients

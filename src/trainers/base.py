@@ -10,7 +10,9 @@ import yaml
 from tqdm import tqdm
 from src.trainers.utils import *
 from collections import OrderedDict
-#import moxing as mox
+import os
+
+# import moxing as mox
 
 
 class BaseClient():
@@ -28,31 +30,34 @@ class BaseClient():
             collate_fn = nlp_collate_fn
         if self.trainset != None:
             self.trainloader = torch.utils.data.DataLoader(
-                self.trainset, 
-                batch_size=self.batch_size, 
-                drop_last=True, 
+                self.trainset,
+                batch_size=self.batch_size,
+                drop_last=True,
                 shuffle=True,
                 collate_fn=collate_fn,
             )
-        else: self.trainloader = None
+        else:
+            self.trainloader = None
         if self.testset != None:
             self.testloader = torch.utils.data.DataLoader(
-                self.testset, 
+                self.testset,
                 batch_size=self.batch_size,
                 drop_last=False,
                 shuffle=True,
                 collate_fn=collate_fn,
             )
-        else: self.testloader = None
+        else:
+            self.testloader = None
         if self.validation != None:
             self.valloader = torch.utils.data.DataLoader(
-                self.validation, 
+                self.validation,
                 batch_size=self.batch_size,
                 drop_last=False,
                 shuffle=True,
                 collate_fn=collate_fn,
             )
-        else: self.valloader = None
+        else:
+            self.valloader = None
         self.E = params['Trainer']['E']
         self.device = torch.device(params['Trainer']['device'])
         models = importlib.import_module('src.models')
@@ -61,13 +66,13 @@ class BaseClient():
             self.model.embedding.weight.data.copy_(dataset['vocab'].vectors)
         self.model = self.model.to(self.device)
         self.optimizer = eval('optim.%s' % params['Trainer']['optimizer']['name'])(
-            self.model.parameters(), 
+            self.model.parameters(),
             **params['Trainer']['optimizer']['params'],
         )
-    
+
     def local_train(self):
         raise NotImplementedError()
-    
+
     def clone_model(self, target):
         p_tensor = target.model.parameters_to_tensor()
         self.model.tensor_to_parameters(p_tensor)
@@ -100,13 +105,17 @@ class BaseClient():
                 if i >= batch and batch >= 0: break
         accuracy = correct / total
         loss = loss / batch_count
-        if acc: return accuracy
-        else: return loss
-    
+        if acc:
+            return accuracy
+        else:
+            return loss
+
     def get_features_and_labels(self, train=True, batch=-1):
         dataloader = None
-        if train: dataloader = self.trainloader
-        else: dataloader = self.testloader
+        if train:
+            dataloader = self.trainloader
+        else:
+            dataloader = self.testloader
         features_batch = []
         labels_batch = []
         with torch.no_grad():
@@ -121,7 +130,7 @@ class BaseClient():
         features = torch.cat(features_batch)
         labels = torch.cat(labels_batch)
         return features, labels
-    
+
     def save_features_and_labels(self, fn, train=True, batch=-1):
         features, labels = self.get_features_and_labels(train, batch)
         features = features.cpu().numpy()
@@ -129,6 +138,7 @@ class BaseClient():
         np.save('%s_features.npy' % fn, features)
         np.save('%s_labels.npy' % fn, labels)
         return
+
 
 class BaseServer(BaseClient):
     def __init__(self, id, params, dataset):
@@ -147,12 +157,14 @@ class BaseServer(BaseClient):
 
     def sample_client(self):
         return random.sample(
-            self.clients, 
+            self.clients,
             self.n_clients_per_round,
         )
+
     def select_client(self):
         select_num = min(self.n_clients_per_round, len(self.clients))
         return self.clients[:select_num]
+
 
 class Trainer():
     def __init__(self, config):
@@ -177,11 +189,11 @@ class Trainer():
         self.clients = []
         for i in range(config['Trainer']['n_clients']):
             id = i + 1
-            client=eval('trainer_module.Client')(
-                       id, 
-                       config,
-                       dataset_split[i],
-                   )
+            client = eval('trainer_module.Client')(
+                id,
+                config,
+                dataset_split[i],
+            )
 
             self.clients.append(client)
         # init server
@@ -259,7 +271,7 @@ class Trainer():
     #     output.write('selection time: %.0f seconds\n' % (time_end - time_begin))
     #     self.server.model.tensor_to_parameters(old_parameters)
     #     return selected_clients, lazy_list
-    
+
     def greedy_select(self, lazy_list, output, acc=True):
         output.write('==========selection begin==========\n')
         old_parameters = self.server.model.parameters_to_tensor()
@@ -277,10 +289,11 @@ class Trainer():
         unselect_clients = self.server.clients
         lazy_list = [[c, 10] for c in unselect_clients]
 
+        # f = open('select_round%d.txt' % self.iter_round, 'w')
         for j in range(select_num):
             self.server.clients = selected_clients
             best_client = None
-            max_gain = 0
+            max_gain = -10
             unselect_lazylist = []
             old_test = 0.0
             if acc:
@@ -301,24 +314,30 @@ class Trainer():
                     gain = self.server.test_accuracy(val=True, batch=200) - old_test
                 else:
                     gain = old_test - self.server.test_accuracy(val=True, batch=200, acc=False)
-                lazy_list[i][1] = min(lazy_list[i][1], gain)
+                if j == 0:
+                    lazy_list[i][1] = gain
+                else:
+                    lazy_list[i][1] = 0.8 * lazy_list[i][1] + 0.2 * gain
                 unselect_lazylist.append(lazy_list[i])
                 if gain > max_gain:
                     max_gain = gain
                     best_client = client
                 print('selecting %d client, clientid: %d, gain: %f' % (j, client.id, gain))
-                if(i != len(lazy_list) - 1 and max_gain >= lazy_list[i+1][1]):
+                if (i != len(lazy_list) - 1 and max_gain >= lazy_list[i + 1][1]):
                     break
             if best_client == None:
                 unselect_lazylist.sort(key=lambda x: x[1], reverse=True)
                 best_client = unselect_lazylist[0][0]
             selected_clients.append(best_client)
             unselect_clients.remove(best_client)
+            self.server.aggregate_model(selected_clients)
+            gain = self.server.test_accuracy(val=True, batch=200) - old_test
             print('client id: %d is selected' % best_client.id)
-            lazy_list.sort(key=lambda x : x[1], reverse=True)
+            # f.write('client id: %d, max gain: %f, gain: %f\n' % (best_client.id, max_gain, gain))
+            lazy_list.sort(key=lambda x: x[1], reverse=True)
         for client in unselect_clients:
             selected_clients.append(client)
-
+        # f.close()
         time_end = time.time()
         self.clients = selected_clients
         self.server.clients = selected_clients
@@ -331,23 +350,30 @@ class Trainer():
     def train(self):
         output = sys.stdout
         lazy_list = []
-        if 'Output' in self.config: output = open(self.config['Output'], 'a')
-        #if 'Output' in self.config: output = mox.file.File('obs://fed/fed-selection/code/result/' + self.config['Output'], 'a')
+        if 'Output' in self.config:
+            os.makedirs(os.path.dirname(self.config['Output']), exist_ok=True)
+            output = open(self.config['Output'], 'a')
+        # if 'Output' in self.config: output = mox.file.File('obs://fed/fed-selection/code/result/' + self.config['Output'], 'a')
         output.write(yaml.dump(self.config, Dumper=yaml.Dumper))
         # greedy algorithm: select the best clients by greedy strategy
+        self.iter_round = 0
         acc = True
         if self.config['Trainer']['evaluation'] == 'loss':
             acc = False
         if self.config['Trainer']['name'] == "greedyFed" or self.config['Trainer']['name'] == "greedyFed+":
+            for client in self.server.clients:
+                client.clone_model(self.server)
+                client.local_train(self.server.params['Trainer']['E'])
+            self.server.aggregate_model(self.server.clients)
             selected_clients, lazy_list = self.greedy_select([], output, acc)
         try:
             for round in tqdm(range(self.config['Trainer']['Round']), desc='Communication Round', leave=False):
+                self.iter_round = round
                 output.write('==========Round %d begin==========\n' % round)
                 time_begin = time.time()
-
-                #C_t = self.config['Trainer']['Round'] - (round + 1)
-                #if C_t & (C_t - 1) == 0 and self.config['Trainer']['name'] == "greedyFed+":
-                if (round+1) % 10 == 0 and self.config['Trainer']['name'] == "greedyFed+" and self.meters['accuracy'].last() < self.meters['accuracy'].avg(-5):
+                # C_t = self.config['Trainer']['Round'] - (round + 1)
+                # if C_t & (C_t - 1) == 0 and self.config['Trainer']['name'] == "greedyFed+":
+                if (round + 1) % 10 == 0 and self.config['Trainer']['name'] == "greedyFed+":
                     clients, lazy_list = self.greedy_select(lazy_list, output, acc)
                 clients = self.server.train()
                 self.meters['accuracy'].append(self.server.test_accuracy())
