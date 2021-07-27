@@ -98,6 +98,13 @@ def merge_target(dataset):
     for idx in dataset.indices:
         dataset.dataset.targets[idx] = coarse_labels[dataset.dataset.targets[idx]]
 
+def remap_target(dataset, percent_sample, target_map):
+    dataset_len = len(dataset.indices)
+    shuffle_target_num = int(dataset_len * percent_sample)
+    shuffle_idx = random.sample(dataset.indices, shuffle_target_num)
+    for idx in shuffle_idx:
+        dataset.dataset.targets[idx] = target_map[dataset.dataset.targets[idx]]
+
 def niid(params):
     num_user = params['Trainer']['n_clients']
     testset_dict = {
@@ -112,5 +119,12 @@ def niid(params):
         test_dataset.targets[i] = coarse_labels[label]
     for i, dataset in enumerate(dataset_split):
         merge_target(dataset['train'])
+    for i, dataset in enumerate(dataset_split):
+    #   j = i % 100
+        if 0 == i % 2:
+            mp = {}
+            for i in range(20):
+                mp[i] = (i + 1) % 20
+            remap_target(dataset['train'], params['Dataset']['noise_client_percent'], mp)
     return dataset_split, testset_dict
 
