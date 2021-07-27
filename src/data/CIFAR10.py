@@ -53,15 +53,11 @@ def niid(params):
     dataset_split = noise_split(train_dataset, test_dataset, s, num_user)
     testset_dict['validation'] = dataset_split[0]['validation']
     for i, dataset in enumerate(dataset_split):
-        r = random.random()
-        if i < 100:
-            continue
-        elif i < 450:
-            shuffle_target(dataset['train'], 0.5)
-        else:
+    #   j = i % 100
+        if 0 == i % 2:
             mp = {}
             for i in range(10):
                 mp[i] = (i + 1) % 10
-            remap_target(dataset['train'], 1.0, mp)
-    print("add noise ... ok")
+            remap_target(dataset['train'], params['Dataset']['noise_client_percent'], mp)
+    print("add noise ... (clean)")
     return dataset_split, testset_dict
