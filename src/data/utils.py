@@ -108,9 +108,9 @@ def noise_split(train_dataset, test_dataset, s: float, num_user: int, func=(lamb
 
     dataset_split = []
     for i in range(5):
-        count_ds = len(class_merge_targets[i]) // 100
+        count_ds = len(class_merge_targets[i]) // (num_user//5)
         p_train = 0
-        for j in range(100):
+        for j in range(num_user//5):
             train_idx = class_merge_targets[i][
                 p_train: p_train + count_ds
             ]
