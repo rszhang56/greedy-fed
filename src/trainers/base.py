@@ -373,7 +373,7 @@ class Trainer():
                 time_begin = time.time()
                 # C_t = self.config['Trainer']['Round'] - (round + 1)
                 # if C_t & (C_t - 1) == 0 and self.config['Trainer']['name'] == "greedyFed+":
-                if (round + 1) % 10 == 0 and self.config['Trainer']['name'] == "greedyFed+":
+                if round > 5 and (round + 1) % 1 == 0 and self.config['Trainer']['name'] == "greedyFed+" and self.meters['accuracy'].last() <= self.meters['accuracy'].avg(-5):
                     clients, lazy_list = self.greedy_select(lazy_list, output, acc)
                 clients = self.server.train()
                 self.meters['accuracy'].append(self.server.test_accuracy())
