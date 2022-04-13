@@ -1,5 +1,5 @@
 # Federated data source selection
-The code of federated data source selection algorithms FFDS and FFDS-d.
+The code of federated data source selection algorithms FDSS and FDSSS-d.
 
 Our paper: Data Source Selection in Federated Learning: A Submodular Optimization Approach (DASFAA22)
 ## Usage of the algorithms
